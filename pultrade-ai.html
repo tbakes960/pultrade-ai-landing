@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pultrade AI — The Trading Journal That Pays for Itself</title>
+  <meta name="description" content="AI-powered trading journal and alert system. Manual journaling with discipline, AI coaching that builds your confidence, and real-time push alerts." />
+  <!-- ── Security Headers ─────────────────────────────────────────────── -->
+  <!-- Prevent MIME-type sniffing -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <!-- Block the page from being embedded in an iframe (clickjacking) -->
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <!-- Control referrer information sent on outbound navigation -->
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <!-- Disable browser APIs this page has no need for -->
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" />
+  <!--
+    Content Security Policy:
+    - style-src: inline styles (required by this page) + Google Fonts stylesheet
+    - font-src:  Google Fonts binary files only
+    - script-src: only the inline IntersectionObserver script in this file
+    - img-src:   inline data URIs and same-origin only (no external image loads)
+    - connect-src/form-action/object-src: all blocked — page makes no network calls
+    - frame-src/worker-src: blocked — no iframes or workers
+    - base-uri: locked to same origin to prevent base-tag injection
+    Note: frame-ancestors is enforced only via HTTP headers, not meta tags,
+    so X-Frame-Options above handles clickjacking for older browsers.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'self'; object-src 'none'; media-src 'none'; frame-src 'none'; worker-src 'none';" />
+  <!-- ── Fonts ──────────────────────────────────────────────────────────── -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f5faf7;
+      color: #1a3a30;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── CSS Variables ─────────────────────────────────────────────── */
+    :root {
+      --green-deep:  #064e3b;
+      --green-mid:   #0a6650;
+      --green-light: #e6f4ef;
+      --green-card:  #edf7f2;
+      --mint:        #1a9e78;
+      --gold:        #fbbf24;
+      --gold-hover:  #f59e0b;
+      --text:        #1a3a30;
+      --text-muted:  #4a7a65;
+      --text-faint:  #6a9a85;
+      --border:      #b8d8cc;
+      --white:       #ffffff;
+      --surface:     #f5faf7;
+    }
+
+    /* ─── Utility ───────────────────────────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem; }
+    .text-center { text-align: center; }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; }
+
+    .fade-in {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── Buttons ───────────────────────────────────────────────────── */
+    .btn-gold {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      background: var(--gold); color: #064e3b;
+      font-weight: 800; font-size: 0.95rem;
+      padding: 0.875rem 1.75rem; border-radius: 14px;
+      border: none; cursor: pointer;
+      box-shadow: 0 6px 24px rgba(251,191,36,0.35);
+      transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+      text-decoration: none;
+    }
+    .btn-gold:hover { background: var(--gold-hover); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(251,191,36,0.4); }
+    .btn-gold:active { transform: translateY(0); }
+
+    .btn-ghost {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      background: transparent; color: var(--green-deep);
+      font-weight: 600; font-size: 0.9rem;
+      padding: 0.75rem 1.25rem; border-radius: 12px;
+      border: 1.5px solid var(--green-deep); cursor: pointer;
+      transition: background 0.18s, color 0.18s;
+      text-decoration: none;
+    }
+    .btn-ghost:hover { background: var(--green-light); }
+
+    /* ─── Navbar ────────────────────────────────────────────────────── */
+    .navbar {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.85rem 1.5rem;
+      background: rgba(245,250,247,0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(6,78,59,0.1);
+    }
+    .navbar-brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 900; font-size: 1.15rem; color: var(--green-deep); }
+    .navbar-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .nav-login {
+      font-size: 0.875rem; font-weight: 600; color: var(--green-deep);
+      padding: 0.5rem 0.875rem; border-radius: 10px; cursor: pointer;
+      background: transparent; border: none;
+      transition: background 0.15s;
+    }
+    .nav-login:hover { background: var(--green-light); }
+    .btn-gold-sm { font-size: 0.8rem !important; padding: 0.5rem 1rem !important; border-radius: 10px !important; }
+
+    /* ─── Hero ──────────────────────────────────────────────────────── */
+    .hero { padding: 5rem 1.25rem 5rem; text-align: center; }
+    .hero-badge {
+      display: inline-block; margin-bottom: 1.25rem;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.35rem 0.9rem; border-radius: 999px;
+      background: #dcf0e8; color: #1a6e4a;
+      border: 1px solid #a8dfc4;
+    }
+    .hero-headline {
+      font-size: clamp(2.2rem, 6vw, 4rem);
+      font-weight: 900; line-height: 1.1;
+      color: var(--green-deep);
+      margin-bottom: 1.25rem;
+    }
+    .hero-headline .gold-text {
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: 1.05rem; color: var(--text-muted);
+      max-width: 540px; margin: 0 auto 2rem;
+      line-height: 1.75;
+    }
+    .hero-sub strong { color: var(--green-deep); }
+    .hero-cta-row { display: flex; flex-direction: column; align-items: center; gap: 0.875rem; }
+    @media(min-width:500px) { .hero-cta-row { flex-direction: row; justify-content: center; } }
+    .hero-login-link { font-size: 0.85rem; color: var(--green-deep); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; background: none; border: none; }
+    .hero-login-link:hover { color: var(--mint); }
+
+    /* ─── Mockups ───────────────────────────────────────────────────── */
+    .mockups { display: flex; flex-direction: column; align-items: center; gap: 2rem; margin-top: 4rem; }
+    @media(min-width:700px) { .mockups { flex-direction: row; justify-content: center; align-items: flex-start; } }
+
+    /* Desktop monitor */
+    .monitor-frame {
+      border: 4px solid #2d2d2d; border-radius: 16px; background: #1f1f1f;
+      box-shadow: 0 24px 80px rgba(6,78,59,0.3);
+      width: 100%; max-width: 420px;
+    }
+    .monitor-bar {
+      display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background:#ef4444; } .dot-y { background:#fbbf24; } .dot-g { background:#22c55e; }
+    .url-bar {
+      flex: 1; margin-left: 8px; height: 18px; border-radius: 5px;
+      background: #3a3a3a; color: #8a8a8a; font-size: 8px;
+      display: flex; align-items: center; padding: 0 8px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .screen {
+      background: var(--green-light); border-radius: 0 0 10px 10px; overflow: hidden;
+    }
+    .mini-nav {
+      background: white; border-bottom: 1px solid var(--border);
+      padding: 6px 12px; display: flex; align-items: center; gap: 10px;
+    }
+    .mini-brand { font-size: 9px; font-weight: 900; color: var(--green-deep); }
+    .mini-nav-links { margin-left: auto; display: flex; gap: 10px; }
+    .mini-nav-links span { font-size: 7px; color: var(--text-muted); }
+    .mini-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; padding: 8px; }
+    .mini-stat {
+      background: white; border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px;
+    }
+    .mini-stat-label { font-size: 6px; color: var(--text-muted); margin-bottom: 2px; }
+    .mini-stat-val { font-size: 13px; font-weight: 900; }
+    .green-val { color: #1a7a50; } .blue-val { color: #2d7a9a; }
+    .mini-trades { margin: 0 8px 8px; background: white; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .mini-trade-row {
+      display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+      border-bottom: 1px solid var(--green-light);
+    }
+    .mini-trade-row:last-child { border-bottom: none; }
+    .trade-sym { font-size: 7.5px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); width: 46px; }
+    .trade-badge {
+      font-size: 6.5px; padding: 1px 5px; border-radius: 999px; font-weight: 700;
+    }
+    .badge-buy { background: #d4f0e4; color: #1a7a50; }
+    .badge-sell { background: #fde8e8; color: #a04040; }
+    .trade-pnl { margin-left: auto; font-size: 7.5px; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+    .pnl-win { color: #1a7a50; } .pnl-loss { color: #a04040; }
+    .monitor-stand { margin: 0 auto; }
+    .stand-neck { width: 50px; height: 10px; background: #2d2d2d; border-radius: 0 0 4px 4px; }
+    .stand-base { width: 80px; height: 6px; background: #252525; border-radius: 3px; margin-top: 2px; }
+
+    /* Phone */
+    .phone-frame {
+      border: 4px solid #1f1f1f; border-radius: 36px; background: #111;
+      box-shadow: 0 16px 48px rgba(6,78,59,0.25); overflow: hidden;
+      width: 148px; flex-shrink: 0;
+    }
+    .phone-notch { background: #111; padding: 6px 0; display: flex; justify-content: center; }
+    .notch-pill { width: 44px; height: 6px; background: #333; border-radius: 999px; }
+    .phone-screen { background: var(--green-light); padding-bottom: 8px; }
+    .alert-card {
+      margin: 8px; background: white; border: 1px solid var(--border);
+      border-radius: 14px; padding: 8px;
+    }
+    .alert-header { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
+    .alert-app { font-size: 7px; font-weight: 800; color: var(--green-deep); }
+    .alert-time { margin-left: auto; font-size: 6px; color: var(--text-faint); }
+    .alert-title { font-size: 8px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .alert-detail { font-size: 6.5px; color: var(--text-muted); }
+    .phone-bottomnav {
+      margin: 6px 8px 0; background: white; border: 1px solid var(--border);
+      border-radius: 12px; display: flex; justify-content: space-around; padding: 5px 0;
+    }
+    .phone-nav-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .phone-nav-item span:first-child { font-size: 12px; }
+    .phone-nav-item span:last-child { font-size: 5.5px; color: var(--text-faint); }
+
+    /* ─── Social proof bar ──────────────────────────────────────────── */
+    .proof-bar {
+      background: linear-gradient(90deg, var(--green-deep), var(--green-mid));
+      padding: 1.25rem 1.5rem;
+    }
+    .proof-bar-inner {
+      max-width: 900px; margin: 0 auto;
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 1.5rem 2.5rem;
+    }
+    .proof-item { display: flex; align-items: center; gap: 0.625rem; }
+    .proof-icon { font-size: 1.375rem; }
+    .proof-title { font-size: 0.7rem; font-weight: 800; color: white; }
+    .proof-sub   { font-size: 0.65rem; color: #6ee7b7; }
+
+    /* ─── Two-col section ───────────────────────────────────────────── */
+    .two-col {
+      display: grid; grid-template-columns: 1fr;
+      gap: 3rem; padding: 5rem 1.25rem; max-width: 1100px; margin: 0 auto;
+      align-items: center;
+    }
+    @media(min-width:768px) { .two-col { grid-template-columns: 1fr 1fr; gap: 4rem; } }
+    @media(min-width:768px) { .two-col.reverse .col-visual { order: -1; } }
+
+    .section-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      color: #4a7a65; margin-bottom: 0.5rem;
+    }
+    .section-h2 {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 900; line-height: 1.15;
+      color: var(--green-deep); margin-bottom: 1rem;
+    }
+    .section-body { color: var(--text-muted); line-height: 1.75; margin-bottom: 1.5rem; }
+    .section-body strong { color: var(--green-deep); }
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 0.625rem; margin-bottom: 2rem; }
+    .feature-list li { font-size: 0.875rem; color: var(--text-muted); }
+
+    /* ─── Journal mock card ─────────────────────────────────────────── */
+    .journal-card {
+      background: white; border: 1px solid #d4ece2;
+      border-radius: 20px; padding: 1.25rem;
+      box-shadow: 0 20px 60px rgba(6,78,59,0.12);
+    }
+    .jcard-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;
+    }
+    .jcard-title { font-size: 0.875rem; font-weight: 800; color: var(--green-deep); }
+    .jcard-actions { display: flex; gap: 0.5rem; }
+    .jcard-btn {
+      font-size: 0.7rem; padding: 0.25rem 0.625rem; border-radius: 8px;
+      font-weight: 700; border: 1.5px solid var(--border); color: var(--text-muted);
+      background: transparent;
+    }
+    .jcard-btn-gold { background: var(--gold); color: var(--green-deep); border-color: var(--gold); }
+    .jtrade { padding: 0.625rem 0; border-bottom: 1px solid var(--green-light); }
+    .jtrade:last-child { border-bottom: none; }
+    .jtrade-row { display: flex; align-items: center; gap: 0.5rem; }
+    .jtrade-sym { font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); width: 60px; }
+    .jtrade-badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+    .jtrade-date { margin-left: auto; font-size: 0.65rem; color: var(--text-faint); }
+    .jtrade-pnl { font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+    .jtrade-note { font-size: 0.65rem; color: var(--text-muted); margin-top: 3px; }
+
+    /* ─── AI Coach section ──────────────────────────────────────────── */
+    .coach-section {
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green-mid) 60%, #0d7a60 100%);
+      padding: 5rem 1.25rem;
+    }
+    .coach-inner { max-width: 1100px; margin: 0 auto; }
+    .premium-badge {
+      display: inline-block; margin-bottom: 1rem;
+      font-size: 0.65rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.3rem 0.75rem; border-radius: 999px;
+      background: rgba(255,255,255,0.1); color: var(--gold); border: 1px solid rgba(251,191,36,0.3);
+    }
+    .coach-h2 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 900; color: white; margin-bottom: 0.75rem; line-height: 1.15; }
+    .coach-sub { color: #a7f3d0; max-width: 520px; line-height: 1.7; margin-bottom: 2.5rem; }
+    .coach-sub strong { color: white; }
+    .chat-bubbles { display: flex; flex-direction: column; gap: 1.25rem; max-width: 480px; }
+    .chat-bubble { display: flex; align-items: flex-start; gap: 0.75rem; }
+    .ai-avatar {
+      flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #0d9488);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 900; color: white;
+      box-shadow: 0 4px 12px rgba(16,185,129,0.4);
+    }
+    .bubble-text {
+      background: rgba(255,255,255,0.08); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 18px; border-top-left-radius: 6px;
+      padding: 0.875rem 1.125rem;
+      font-size: 0.875rem; color: #f0fdf7; line-height: 1.65;
+    }
+    .coach-cta-box {
+      margin-top: 2.5rem;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 18px; padding: 1.25rem;
+      display: inline-block;
+    }
+    .coach-cta-price { color: #a7f3d0; font-size: 0.875rem; margin-bottom: 0.875rem; }
+    .coach-cta-price strong { color: var(--gold); font-size: 1.1rem; }
+
+    /* ─── Alert mock cards ──────────────────────────────────────────── */
+    .alert-cards { display: flex; flex-direction: column; gap: 0.75rem; max-width: 320px; margin: 0 auto; }
+    @media(min-width:768px) { .alert-cards { margin: 0; } }
+    .alert-mock-card {
+      background: white; border: 1px solid var(--border);
+      border-radius: 16px; padding: 1rem;
+      box-shadow: 0 4px 20px rgba(6,78,59,0.08);
+      display: flex; align-items: flex-start; gap: 0.75rem;
+    }
+    .alert-icon-wrap {
+      flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+      background: var(--green-light); border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+    }
+    .alert-mock-title { font-size: 0.8rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .alert-mock-meta { font-size: 0.68rem; color: var(--text-muted); }
+    .alert-mock-action { font-size: 0.7rem; font-weight: 800; }
+    .action-buy { color: #1a7a50; } .action-sell { color: #a04040; }
+    .alert-mock-age { margin-left: auto; font-size: 0.65rem; color: var(--text-faint); flex-shrink: 0; }
+    .alert-caption { text-align: center; font-size: 0.7rem; color: var(--text-faint); margin-top: 0.5rem; }
+
+    /* ─── Analytics section ─────────────────────────────────────────── */
+    .analytics-section { background: var(--green-card); padding: 5rem 1.25rem; }
+    .metrics-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;
+      max-width: 680px; margin: 0 auto;
+    }
+    @media(min-width:500px) { .metrics-grid { grid-template-columns: repeat(4,1fr); } }
+    .metric-card {
+      background: white; border: 1px solid var(--border);
+      border-radius: 18px; padding: 1.25rem; text-align: center;
+      box-shadow: 0 2px 12px rgba(6,78,59,0.06);
+    }
+    .metric-icon { font-size: 1.75rem; margin-bottom: 0.375rem; }
+    .metric-label { font-size: 0.68rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+    .metric-val { font-size: 2rem; font-weight: 900; color: var(--green-deep); line-height: 1; margin-bottom: 0.25rem; }
+    .metric-desc { font-size: 0.65rem; color: var(--text-faint); }
+
+    /* ─── Pricing ───────────────────────────────────────────────────── */
+    .pricing-section { padding: 5rem 1.25rem; max-width: 1100px; margin: 0 auto; }
+    .pricing-grid {
+      display: grid; grid-template-columns: 1fr;
+      gap: 1.5rem; max-width: 680px; margin: 0 auto;
+    }
+    @media(min-width:560px) { .pricing-grid { grid-template-columns: 1fr 1fr; } }
+    .pricing-card {
+      border-radius: 20px; padding: 1.75rem 1.5rem;
+      display: flex; flex-direction: column;
+    }
+    .pricing-card-free {
+      background: white; border: 1.5px solid #d4ece2;
+      box-shadow: 0 4px 20px rgba(6,78,59,0.06);
+    }
+    .pricing-card-premium {
+      background: linear-gradient(160deg, var(--green-deep) 0%, #0a6650 100%);
+      border: 2px solid var(--gold);
+      box-shadow: 0 12px 48px rgba(6,78,59,0.35);
+      position: relative;
+    }
+    .popular-badge {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      background: var(--gold); color: var(--green-deep);
+      font-size: 0.65rem; font-weight: 900; letter-spacing: 0.08em;
+      padding: 4px 14px; border-radius: 999px;
+      box-shadow: 0 4px 14px rgba(251,191,36,0.35);
+    }
+    .pricing-tier { font-size: 1rem; font-weight: 800; margin-bottom: 0.375rem; }
+    .pricing-tier-free { color: var(--green-deep); }
+    .pricing-tier-premium { color: white; }
+    .pricing-price { display: flex; align-items: baseline; gap: 0.25rem; margin-bottom: 1.5rem; }
+    .price-main { font-size: 2.75rem; font-weight: 900; line-height: 1; }
+    .price-main-free { color: var(--green-deep); }
+    .price-main-premium { color: var(--gold); }
+    .price-per { font-size: 0.875rem; }
+    .price-per-free { color: var(--text-muted); }
+    .price-per-premium { color: #6ee7b7; }
+    .pricing-features { list-style: none; flex: 1; display: flex; flex-direction: column; gap: 0.625rem; margin-bottom: 1.75rem; }
+    .pricing-feature { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.875rem; line-height: 1.4; }
+    .check { font-size: 0.75rem; margin-top: 2px; }
+    .check-free { color: #1a9e78; } .check-premium { color: var(--gold); }
+    .feature-free { color: #374151; } .feature-premium { color: #d1fae5; }
+
+    /* ─── Final CTA ─────────────────────────────────────────────────── */
+    .final-cta {
+      background: linear-gradient(135deg, var(--green-deep), var(--green-mid));
+      padding: 5rem 1.25rem; text-align: center;
+    }
+    .final-h2 { font-size: clamp(1.75rem, 4vw, 2.75rem); font-weight: 900; color: white; margin-bottom: 1rem; line-height: 1.2; }
+    .final-sub { color: #a7f3d0; max-width: 440px; margin: 0 auto 2rem; }
+    .final-link { display: block; margin-top: 1rem; font-size: 0.75rem; color: #6ee7b7; text-decoration: underline; text-underline-offset: 3px; }
+    .final-link:hover { color: white; }
+
+    /* ─── Footer ────────────────────────────────────────────────────── */
+    footer {
+      padding: 2rem 1.5rem;
+      background: white; border-top: 1px solid var(--border);
+    }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    }
+    @media(min-width:640px) { .footer-inner { flex-direction: row; justify-content: space-between; } }
+    .footer-brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 900; font-size: 1rem; color: var(--green-deep); }
+    .footer-tagline { font-size: 0.75rem; color: var(--text-muted); margin-left: 0.25rem; }
+    .footer-links { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+    .footer-links a, .footer-links button {
+      font-size: 0.875rem; color: var(--text-muted); text-decoration: none;
+      background: none; border: none; cursor: pointer; font-family: inherit;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover, .footer-links button:hover { color: var(--green-deep); }
+    .footer-copy { text-align: center; font-size: 0.65rem; color: var(--text-faint); margin: 1.25rem auto 0; max-width: 1100px; }
+  </style>
+</head>
+<body>
+
+<!-- ── NAVBAR ──────────────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <a class="navbar-brand" href="https://trading-journal-five-coral.vercel.app" target="_blank" rel="noopener noreferrer">
+    <span>🪙</span> Pultrade AI
+  </a>
+  <div class="navbar-actions">
+    <a class="nav-login" href="https://trading-journal-five-coral.vercel.app/login" target="_blank" rel="noopener noreferrer">Log in</a>
+    <a class="btn-gold btn-gold-sm" href="https://trading-journal-five-coral.vercel.app" target="_blank" rel="noopener noreferrer">Open App</a>
+  </div>
+</nav>
+
+<!-- ── HERO ────────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="fade-in">
+    <span class="hero-badge">AI-Powered Trading Journal &amp; Alert System</span>
+  </div>
+
+  <h1 class="hero-headline fade-in" style="transition-delay:80ms">
+    The Trading Journal<br>
+    <span class="gold-text">That Pays for Itself.</span>
+  </h1>
+
+  <p class="hero-sub fade-in" style="transition-delay:160ms">
+    Turn your manual logs into a professional roadmap. Get encouraging AI coaching
+    to fix your trading leaks and real-time alerts to catch the next move.
+    <strong>Desktop power meets mobile speed.</strong>
+  </p>
+
+  <div class="hero-cta-row fade-in" style="transition-delay:240ms">
+    <a class="btn-gold" href="https://trading-journal-five-coral.vercel.app" target="_blank" rel="noopener noreferrer">
+      🚀 Start Journaling for Free
+    </a>
+    <a class="hero-login-link" href="https://trading-journal-five-coral.vercel.app/login" target="_blank" rel="noopener noreferrer">
+      Already have an account? Log in
+    </a>
+  </div>
+
+  <!-- Mockups -->
+  <div class="mockups fade-in" style="transition-delay:340ms">
+    <!-- Desktop monitor -->
+    <div style="flex-shrink:0; width:100%; max-width:420px;">
+      <div class="monitor-frame">
+        <div class="monitor-bar">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <div class="url-bar">trading-journal-five-coral.vercel.app</div>
+        </div>
+        <div class="screen">
+          <div class="mini-nav">
+            <span class="mini-brand">🪙 Pultrade AI</span>
+            <div class="mini-nav-links">
+              <span>Journal</span><span>Analytics</span><span>Signals</span><span>Coach</span>
+            </div>
+          </div>
+          <div class="mini-stats">
+            <div class="mini-stat">
+              <div class="mini-stat-label">Win Rate</div>
+              <div class="mini-stat-val green-val">68%</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-stat-label">Profit Factor</div>
+              <div class="mini-stat-val green-val">2.14</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-stat-label">Open Trades</div>
+              <div class="mini-stat-val blue-val">3</div>
+            </div>
+          </div>
+          <div class="mini-trades">
+            <div class="mini-trade-row">
+              <span class="trade-sym">EURUSD</span>
+              <span class="trade-badge badge-buy">Buy</span>
+              <span class="trade-pnl pnl-win" style="margin-left:auto">+$142</span>
+            </div>
+            <div class="mini-trade-row">
+              <span class="trade-sym">GBPJPY</span>
+              <span class="trade-badge badge-sell">Sell</span>
+              <span class="trade-pnl pnl-loss" style="margin-left:auto">-$38</span>
+            </div>
+            <div class="mini-trade-row">
+              <span class="trade-sym">XAUUSD</span>
+              <span class="trade-badge badge-buy">Buy</span>
+              <span class="trade-pnl pnl-win" style="margin-left:auto">+$310</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="monitor-stand">
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div class="stand-neck"></div>
+          <div class="stand-base"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone -->
+    <div class="phone-frame">
+      <div class="phone-notch"><div class="notch-pill"></div></div>
+      <div class="phone-screen">
+        <div class="alert-card">
+          <div class="alert-header">
+            <span>🔔</span>
+            <span class="alert-app">Pultrade AI Alert</span>
+            <span class="alert-time">now</span>
+          </div>
+          <div class="alert-title">EURUSD Buy Signal</div>
+          <div class="alert-detail">Entry: 1.0842 · TP: 1.0920 · SL: 1.0800</div>
+        </div>
+        <div class="phone-bottomnav">
+          <div class="phone-nav-item"><span>🏠</span><span>Home</span></div>
+          <div class="phone-nav-item"><span>📋</span><span>Journal</span></div>
+          <div class="phone-nav-item"><span>⚡</span><span>Signals</span></div>
+          <div class="phone-nav-item"><span>📊</span><span>Analytics</span></div>
+          <div class="phone-nav-item"><span>🧠</span><span>Coach</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PROOF BAR ────────────────────────────────────────────────────────── -->
+<div class="proof-bar">
+  <div class="proof-bar-inner">
+    <div class="proof-item"><span class="proof-icon">📋</span><div><div class="proof-title">Manual Journal</div><div class="proof-sub">Full control</div></div></div>
+    <div class="proof-item"><span class="proof-icon">🧠</span><div><div class="proof-title">AI Coach</div><div class="proof-sub">Real-time feedback</div></div></div>
+    <div class="proof-item"><span class="proof-icon">⚡</span><div><div class="proof-title">Live Alerts</div><div class="proof-sub">Push notifications</div></div></div>
+    <div class="proof-item"><span class="proof-icon">📊</span><div><div class="proof-title">Smart Analytics</div><div class="proof-sub">10+ metrics</div></div></div>
+    <div class="proof-item"><span class="proof-icon">📤</span><div><div class="proof-title">CSV Export</div><div class="proof-sub">One click</div></div></div>
+  </div>
+</div>
+
+<!-- ── JOURNALING SECTION ───────────────────────────────────────────────── -->
+<div class="two-col">
+  <div class="col-text fade-in">
+    <p class="section-label">Mindful Journaling</p>
+    <h2 class="section-h2">Reflect to Win.</h2>
+    <p class="section-body">
+      Manual entry forces the discipline that automatic syncs ignore. Log a trade in
+      <strong>30 seconds</strong>, face your psychology, and export your growth with one-click CSV downloads.
+    </p>
+    <ul class="feature-list">
+      <li>✏️&nbsp; Quick-log: symbol, entry, exit, P&amp;L, and notes</li>
+      <li>📂&nbsp; Bulk CSV import from your broker</li>
+      <li>🏷️&nbsp; Tag setups and emotions for pattern recognition</li>
+      <li>📤&nbsp; Export your full history anytime</li>
+    </ul>
+    <a class="btn-gold" href="https://trading-journal-five-coral.vercel.app/journal" target="_blank" rel="noopener noreferrer">Open Journal</a>
+  </div>
+
+  <div class="col-visual fade-in" style="transition-delay:120ms">
+    <div class="journal-card">
+      <div class="jcard-header">
+        <span class="jcard-title">Trade Journal</span>
+        <div class="jcard-actions">
+          <span class="jcard-btn">↑ CSV</span>
+          <span class="jcard-btn jcard-btn-gold">+ Log Trade</span>
+        </div>
+      </div>
+      <div class="jtrade">
+        <div class="jtrade-row">
+          <span class="jtrade-sym">EURUSD</span>
+          <span class="jtrade-badge badge-buy">Buy</span>
+          <span class="jtrade-date">Apr 7</span>
+          <span class="jtrade-pnl pnl-win">+$142.00</span>
+        </div>
+        <div class="jtrade-note">Clean breakout, held discipline ✓</div>
+      </div>
+      <div class="jtrade">
+        <div class="jtrade-row">
+          <span class="jtrade-sym">GBPJPY</span>
+          <span class="jtrade-badge badge-sell">Sell</span>
+          <span class="jtrade-date">Apr 6</span>
+          <span class="jtrade-pnl pnl-loss">-$38.50</span>
+        </div>
+        <div class="jtrade-note">Entered early — FOMO trade</div>
+      </div>
+      <div class="jtrade">
+        <div class="jtrade-row">
+          <span class="jtrade-sym">XAUUSD</span>
+          <span class="jtrade-badge badge-buy">Buy</span>
+          <span class="jtrade-date">Apr 5</span>
+          <span class="jtrade-pnl pnl-win">+$310.00</span>
+        </div>
+        <div class="jtrade-note">Trend follow, held full TP</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI COACH SECTION ────────────────────────────────────────────────── -->
+<section class="coach-section">
+  <div class="coach-inner">
+    <div class="fade-in">
+      <span class="premium-badge">Premium Feature</span>
+      <h2 class="coach-h2">Your Personal AI Coach.</h2>
+      <p class="coach-sub">
+        Not just numbers — your AI Coach builds your <strong>confidence</strong>. It spots
+        patterns in your psychology and helps you trade like the trader you're becoming.
+      </p>
+    </div>
+    <div class="chat-bubbles">
+      <div class="chat-bubble fade-in" style="transition-delay:0ms">
+        <div class="ai-avatar">AI</div>
+        <div class="bubble-text">
+          Great patience on this EURUSD entry! You waited 40 minutes for confirmation before pulling the trigger. That discipline is exactly what separates consistent traders.
+        </div>
+      </div>
+      <div class="chat-bubble fade-in" style="transition-delay:150ms">
+        <div class="ai-avatar">AI</div>
+        <div class="bubble-text">
+          I notice your win rate drops to <strong style="color:#fbbf24">38%</strong> on Fridays vs 72% Mon–Thu. FOMO spikes near the close. Let's add a Friday bias rule — want me to suggest one?
+        </div>
+      </div>
+      <div class="chat-bubble fade-in" style="transition-delay:300ms">
+        <div class="ai-avatar">AI</div>
+        <div class="bubble-text">
+          Over the last 30 days your Profit Factor is 2.14. Your biggest leak is cutting winners too early — avg winner is only 1.3× avg loser. Let's work on that together.
+        </div>
+      </div>
+    </div>
+    <div class="coach-cta-box fade-in" style="transition-delay:450ms">
+      <p class="coach-cta-price">AI Coaching is a <strong>$15/month</strong> investment in your digital mentor.</p>
+      <a class="btn-gold" href="https://trading-journal-five-coral.vercel.app/upgrade" target="_blank" rel="noopener noreferrer">Unlock AI Coach →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── ALERTS SECTION ──────────────────────────────────────────────────── -->
+<div class="two-col reverse">
+  <div class="col-text fade-in">
+    <p class="section-label">Signal Assistant</p>
+    <h2 class="section-h2">Never Miss the Alpha.</h2>
+    <p class="section-body">
+      Professional-grade trade alerts delivered via push notification. Stay connected to the markets
+      <strong>without being glued to the charts.</strong>
+    </p>
+    <ul class="feature-list">
+      <li>📡&nbsp; Forex, Indices, Commodities, Crypto &amp; Stocks</li>
+      <li>⏱️&nbsp; Multi-timeframe scanning: 1m to 1D</li>
+      <li>🔔&nbsp; Instant push notification on signal trigger</li>
+      <li>📈&nbsp; TradingView live chart integration</li>
+    </ul>
+    <a class="btn-gold" href="https://trading-journal-five-coral.vercel.app/signals" target="_blank" rel="noopener noreferrer">View Live Signals</a>
+  </div>
+
+  <div class="col-visual fade-in" style="transition-delay:120ms">
+    <div class="alert-cards">
+      <div class="alert-mock-card">
+        <div class="alert-icon-wrap">⚡</div>
+        <div style="flex:1">
+          <div class="alert-mock-title">EURUSD <span class="alert-mock-action action-buy">Buy</span></div>
+          <div class="alert-mock-meta">Entry 1.0842 · TP 1.0920 · SL 1.0800 · 1h</div>
+        </div>
+        <span class="alert-mock-age">just now</span>
+      </div>
+      <div class="alert-mock-card">
+        <div class="alert-icon-wrap">⚡</div>
+        <div style="flex:1">
+          <div class="alert-mock-title">GBPUSD <span class="alert-mock-action action-sell">Sell</span></div>
+          <div class="alert-mock-meta">Entry 1.2610 · TP 1.2530 · SL 1.2660 · 4h</div>
+        </div>
+        <span class="alert-mock-age">12m ago</span>
+      </div>
+      <div class="alert-mock-card">
+        <div class="alert-icon-wrap">⚡</div>
+        <div style="flex:1">
+          <div class="alert-mock-title">XAUUSD <span class="alert-mock-action action-buy">Buy</span></div>
+          <div class="alert-mock-meta">Entry 3298 · TP 3340 · SL 3270 · 1d</div>
+        </div>
+        <span class="alert-mock-age">1h ago</span>
+      </div>
+      <p class="alert-caption">Push notifications delivered to your phone in real-time</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── ANALYTICS SECTION ───────────────────────────────────────────────── -->
+<section class="analytics-section">
+  <div class="container text-center fade-in">
+    <p class="section-label">Performance Analytics</p>
+    <h2 class="section-h2">Data That Drives Decisions.</h2>
+    <p class="section-body" style="max-width:480px; margin:0 auto 2.5rem">
+      10+ performance metrics computed automatically — win rate, profit factor, average R, streak analysis, and more.
+    </p>
+    <div class="metrics-grid">
+      <div class="metric-card"><div class="metric-icon">🎯</div><div class="metric-label">Win Rate</div><div class="metric-val">68%</div><div class="metric-desc">vs 54% baseline</div></div>
+      <div class="metric-card"><div class="metric-icon">📈</div><div class="metric-label">Profit Factor</div><div class="metric-val">2.14</div><div class="metric-desc">Above 2 = elite</div></div>
+      <div class="metric-card"><div class="metric-icon">⚖️</div><div class="metric-label">Avg R:R</div><div class="metric-val">1.8</div><div class="metric-desc">Per closed trade</div></div>
+      <div class="metric-card"><div class="metric-icon">🔥</div><div class="metric-label">Best Streak</div><div class="metric-val">9W</div><div class="metric-desc">Consecutive wins</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ─────────────────────────────────────────────────────────── -->
+<section class="pricing-section">
+  <div class="text-center fade-in" style="margin-bottom:3rem">
+    <p class="section-label">Pricing</p>
+    <h2 class="section-h2">Simple, Honest Pricing.</h2>
+    <p style="color:var(--text-muted)">Start free. Upgrade when you're ready to level up.</p>
+  </div>
+  <div class="pricing-grid">
+    <!-- Free -->
+    <div class="pricing-card pricing-card-free fade-in">
+      <div class="pricing-tier pricing-tier-free">Free</div>
+      <div class="pricing-price">
+        <span class="price-main price-main-free">Free</span>
+      </div>
+      <ul class="pricing-features">
+        <li class="pricing-feature"><span class="check check-free">✓</span><span class="feature-free">Manual trade journal (unlimited)</span></li>
+        <li class="pricing-feature"><span class="check check-free">✓</span><span class="feature-free">Basic stats: win rate &amp; P&amp;L</span></li>
+        <li class="pricing-feature"><span class="check check-free">✓</span><span class="feature-free">CSV import &amp; export</span></li>
+        <li class="pricing-feature"><span class="check check-free">✓</span><span class="feature-free">Signal Assistant (view only)</span></li>
+        <li class="pricing-feature"><span class="check check-free">✓</span><span class="feature-free">Live TradingView charts</span></li>
+      </ul>
+      <a class="btn-ghost" href="https://trading-journal-five-coral.vercel.app" target="_blank" rel="noopener noreferrer" style="width:100%">Get Started Free</a>
+    </div>
+    <!-- Premium -->
+    <div class="pricing-card pricing-card-premium fade-in" style="transition-delay:120ms">
+      <div class="popular-badge">MOST POPULAR</div>
+      <div class="pricing-tier pricing-tier-premium">Premium</div>
+      <div class="pricing-price">
+        <span class="price-main price-main-premium">$15</span>
+        <span class="price-per price-per-premium">/month</span>
+      </div>
+      <ul class="pricing-features">
+        <li class="pricing-feature"><span class="check check-premium">✓</span><span class="feature-premium">Everything in Free</span></li>
+        <li class="pricing-feature"><span class="check check-premium">✓</span><span class="feature-premium">Unlimited AI Coaching Analysis</span></li>
+        <li class="pricing-feature"><span class="check check-premium">✓</span><span class="feature-premium">Real-time push trade alerts</span></li>
+        <li class="pricing-feature"><span class="check check-premium">✓</span><span class="feature-premium">Advanced analytics (10+ metrics)</span></li>
+        <li class="pricing-feature"><span class="check check-premium">✓</span><span class="feature-premium">Weekly AI performance report</span></li>
+        <li class="pricing-feature"><span class="check check-premium">✓</span><span class="feature-premium">Priority support</span></li>
+      </ul>
+      <a class="btn-gold" href="https://trading-journal-five-coral.vercel.app/upgrade" target="_blank" rel="noopener noreferrer" style="width:100%">Unlock Premium →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── FINAL CTA ────────────────────────────────────────────────────────── -->
+<section class="final-cta">
+  <div class="fade-in">
+    <h2 class="final-h2">Ready to trade with <span style="color:var(--gold)">discipline &amp; data?</span></h2>
+    <p class="final-sub">Join traders already using Pultrade AI to grow their edge. Start free — no credit card required.</p>
+    <a class="btn-gold" href="https://trading-journal-five-coral.vercel.app" target="_blank" rel="noopener noreferrer" style="font-size:1.05rem;padding:1rem 2.5rem">
+      🚀 Open Pultrade AI
+    </a>
+    <a class="final-link" href="https://trading-journal-five-coral.vercel.app" target="_blank" rel="noopener noreferrer">
+      trading-journal-five-coral.vercel.app
+    </a>
+  </div>
+</section>
+
+<!-- ── FOOTER ───────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span>🪙</span> Pultrade AI
+      <span class="footer-tagline">— Discipline. Growth. Data.</span>
+    </div>
+    <div class="footer-links">
+      <a href="https://trading-journal-five-coral.vercel.app/terms" target="_blank" rel="noopener noreferrer">Terms</a>
+      <a href="https://trading-journal-five-coral.vercel.app/login" target="_blank" rel="noopener noreferrer">Log in</a>
+      <a class="btn-gold btn-gold-sm" href="https://trading-journal-five-coral.vercel.app" target="_blank" rel="noopener noreferrer">Open App</a>
+    </div>
+  </div>
+  <p class="footer-copy">
+    © 2026 Pultrade AI. All rights reserved. Trading involves risk — past performance is not indicative of future results.
+  </p>
+</footer>
+
+<script>
+  // ── Scroll-triggered fade-in ─────────────────────────────────────────
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible')
+        observer.unobserve(entry.target)
+      }
+    })
+  }, { threshold: 0.12 })
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el))
+
+  // ── CTA redirect guard ───────────────────────────────────────────────
+  // Synchronously enforces HTTPS on every outbound Pultrade link.
+  // Must be synchronous — e.preventDefault() has no effect inside async
+  // callbacks because the browser has already processed the click event.
+  // The CSP connect-src 'none' directive also blocks any fetch() from this
+  // page, so all checks are done at click-time with no network calls.
+  const APP_ROOT = 'https://trading-journal-five-coral.vercel.app'
+
+  document.querySelectorAll('a[href^="' + APP_ROOT + '"]').forEach(link => {
+    link.addEventListener('click', function (e) {
+      const href = this.getAttribute('href')
+      if (!href) return
+
+      // Upgrade http:// to https:// if someone tampers with the DOM at runtime
+      if (href.startsWith('http://')) {
+        e.preventDefault()
+        window.open(href.replace('http://', 'https://'), '_blank', 'noopener,noreferrer')
+        return
+      }
+
+      // Ensure the href still points to our trusted domain (guards against
+      // DOM-clobbering where an injected script changes a link's href)
+      try {
+        const url = new URL(href)
+        if (url.hostname !== 'trading-journal-five-coral.vercel.app') {
+          e.preventDefault()
+          window.open(APP_ROOT, '_blank', 'noopener,noreferrer')
+        }
+      } catch (_) {
+        // Malformed URL — block and fall back to root
+        e.preventDefault()
+        window.open(APP_ROOT, '_blank', 'noopener,noreferrer')
+      }
+    })
+  })
+</script>
+
+<!-- Fallback for users with JavaScript disabled: all links still work as
+     plain HTML anchors. This message only appears when JS is fully off. -->
+<noscript>
+  <style>
+    .noscript-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
+      background: #064e3b; color: #fff;
+      text-align: center; padding: 0.75rem 1rem; font-size: 0.8rem;
+      font-family: system-ui, sans-serif;
+    }
+    .noscript-bar a { color: #fbbf24; font-weight: 700; text-decoration: underline; }
+  </style>
+  <div class="noscript-bar">
+    JavaScript is disabled — all links still work.
+    &nbsp;<a href="https://trading-journal-five-coral.vercel.app" target="_blank" rel="noopener noreferrer">Open Pultrade AI</a>
+  </div>
+</noscript>
+</body>
+</html>
